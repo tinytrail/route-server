@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 )
 
 var (
-	port = 1111
+	port = flag.Int("port", 1111, "The server port")
 	jsonFile = flag.String("json_file", "./server/route_guide_db.json", "A json file containing a list of features")
 )
 
@@ -39,6 +40,16 @@ func (s *routeGuideServer) loadFeatures(filepath string) {
 	}
 }
 
+func (s *routeGuideServer) GetFeature(context context.Context, point *pb.Point) (*pb.Feature, error) {
+	for _, feature := range s.savedFeatures {
+		if feature.Location.Latitude == point.Latitude && feature.Location.Longitude == point.Longitude {
+			return feature, nil
+		}
+	}
+	// No feature was found, return an unnamed feature
+	return &pb.Feature{Location: point, Name: "Unnamed"}, nil
+}
+
 func newServer() *routeGuideServer {
 	s := routeGuideServer{routeNotes: make(map[string][]*pb.RouteNote)}
 	s.loadFeatures(*jsonFile)
@@ -47,7 +58,8 @@ func newServer() *routeGuideServer {
 
 func main() {
 	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	fmt.Print("Starting server on port:", *port)
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 	if (err != nil) {
 		fmt.Println("Error: ", err)
 		return
